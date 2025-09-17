@@ -1,38 +1,62 @@
-version: '3.9'
+version: "3.9"
 
-services:
-  postgres:
-    image: postgres:15
-    container_name: evolution_postgres
-    restart: always
-    environment:
-      POSTGRES_USER: evouser
-      POSTGRES_PASSWORD: 1234
-      POSTGRES_DB: evolutiondb
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-  redis:
-    image: redis:7
-    container_name: evolution_redis
-    restart: always
-    ports:
-      - "6379:6379"
-
-  evolution-api:
-    container_name: evolution_api
-    image: atendai/evolution-api:v2.1.1
-    restart: always
-    env_file:
-      - .env
-    depends_on:
-      - postgres
-      - redis
-    volumes:
-      - evolution_instances:/evolution/instances
+networks:
+    evolution_net:
+        driver: bridge
 
 volumes:
-  postgres_data:
-  evolution_instances:
+    postgres_data:
+    evolution_instances:
+
+services:
+    postgres:
+        image: postgres:15
+        container_name: evolution_postgres
+        restart: always
+        environment:
+            POSTGRES_USER: evouser
+            POSTGRES_PASSWORD: 1234
+            POSTGRES_DB: evolutiondb
+        ports:
+            - "5432:5432"
+        volumes:
+            - postgres_data:/var/lib/postgresql/data
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U evouser -d evolutiondb"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+        networks:
+            - evolution_net
+
+    redis:
+        image: redis:7
+        container_name: evolution_redis
+        restart: always
+        ports:
+            - "6379:6379"
+        healthcheck:
+            test: ["CMD", "redis-cli", "ping"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+        networks:
+            - evolution_net
+
+    evolution-api:
+        container_name: evolution_api
+        image: atendai/evolution-api:v2.1.1
+        restart: always
+        env_file:
+            - .env
+        depends_on:
+            postgres:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
+        volumes:
+            - evolution_instances:/evolution/instances
+        ports:
+            - "3000:3000" # puerto API expuesto
+        networks:
+            - evolution_net
