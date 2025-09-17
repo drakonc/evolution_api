@@ -56,7 +56,5 @@ services:
                 condition: service_healthy
         volumes:
             - evolution_instances:/evolution/instances
-        ports:
-            - "3000:3000" # puerto API expuesto
         networks:
             - evolution_net
