@@ -56,5 +56,7 @@ services:
                 condition: service_healthy
         volumes:
             - evolution_instances:/evolution/instances
+        ports:
+            - "8080:8080" # puerto API expuesto
         networks:
             - evolution_net
