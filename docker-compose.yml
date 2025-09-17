@@ -1,17 +1,55 @@
-version: "3"
-services:
-    evolution-api:
-        container_name: evolution_api
-        image: atendai/evolution-api
-        restart: always
-        ports:
-            - "8080:8080"
-        env_file:
-            - .env
-        volumes:
-            - evolution_store:/evolution/store
-            - evolution_instances:/evolution/instances
+version: "3.9"
+
+networks:
+    evolution_net:
+        driver: bridge
 
 volumes:
-    evolution_store:
+    postgres_data:
     evolution_instances:
+
+services:
+    postgres:
+        image: postgres:15
+        restart: always
+        environment:
+            POSTGRES_USER: evouser
+            POSTGRES_PASSWORD: 1234
+            POSTGRES_DB: evolutiondb
+        volumes:
+            - postgres_data:/var/lib/postgresql/data
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U evouser -d evolutiondb"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+        networks:
+            - evolution_net
+
+    redis:
+        image: redis:7
+        restart: always
+        healthcheck:
+            test: ["CMD", "redis-cli", "ping"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+        networks:
+            - evolution_net
+
+    evolution-api:
+        image: atendai/evolution-api:latest
+        restart: always
+        env_file:
+            - .env
+        depends_on:
+            postgres:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
+        volumes:
+            - evolution_instances:/evolution/instances
+        ports:
+            - "8080:8080" # único puerto expuesto públicamente
+        networks:
+            - evolution_net
